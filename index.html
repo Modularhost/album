@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -111,16 +112,6 @@
     .login-form button:hover{
       background:#5b8def;
     }
-    .login-form .link{
-      display:block;
-      text-align:center;
-      margin-top:16px;
-      color:var(--accent);
-      text-decoration:none;
-    }
-    .login-form .link:hover{
-      text-decoration:underline;
-    }
     .hidden{display:none;}
   </style>
 </head>
@@ -131,7 +122,6 @@
       <input type="text" id="loginUsername" placeholder="Nombre de usuario" required>
       <input type="password" id="loginPassword" placeholder="Contraseña" required>
       <button id="loginBtn">Iniciar Sesión</button>
-      <a class="link" href="register.html">¿No tienes cuenta? Regístrate</a>
     </div>
   </div>
 
@@ -223,12 +213,10 @@
 
     onAuthStateChanged(auth, (user) => {
       if (user) {
-        console.log('Usuario autenticado:', user.uid);
         loginContainer.classList.add('hidden');
         appContainer.classList.remove('hidden');
         init();
       } else {
-        console.log('Usuario no autenticado');
         loginContainer.classList.remove('hidden');
         appContainer.classList.add('hidden');
       }
@@ -245,9 +233,6 @@
       }
 
       try {
-        console.log('Buscando usuario con username:', username);
-        
-        // Buscar el usuario por username en la colección usuarios
         const usuariosRef = collection(db, 'usuarios');
         const q = query(usuariosRef, where('username', '==', username));
         const querySnapshot = await getDocs(q);
@@ -257,16 +242,11 @@
           return;
         }
         
-        // Obtener el email del usuario encontrado
         const userData = querySnapshot.docs[0].data();
         const email = userData.email;
         
-        console.log('Usuario encontrado, intentando login con email:', email);
         await signInWithEmailAndPassword(auth, email, password);
-        console.log('Login exitoso');
-        
       } catch (error) {
-        console.error('Error en inicio de sesión:', error);
         if (error.code === 'auth/user-not-found') {
           alert('Usuario no encontrado');
         } else if (error.code === 'auth/wrong-password') {
@@ -287,7 +267,6 @@
         await signOut(auth);
         alert('Sesión cerrada');
       } catch (error) {
-        console.error('Error al cerrar sesión:', error);
         alert('Error al cerrar sesión');
       }
     });
@@ -295,7 +274,7 @@
     // ======= Utilidades UI =======
     const $ = (s, el = document) => el.querySelector(s);
     const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
-    const toast = (msg) => { console.log(msg); };
+    const toast = (msg) => {};
 
     // ======= Funciones de Firebase =======
     async function ensureDefaultAlbum() {
@@ -305,7 +284,6 @@
         const querySnapshot = await getDocs(q);
         const hasDefault = querySnapshot.docs.some(doc => doc.data().id === 'default');
         if (!hasDefault) {
-          console.log('Creando álbum default');
           await addDoc(albumsRef, { 
             id: 'default', 
             name: 'General', 
@@ -314,7 +292,6 @@
           });
         }
       } catch (error) {
-        console.error('Error al crear álbum default:', error);
         throw error;
       }
     }
@@ -327,7 +304,6 @@
         const albums = querySnapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
         return albums.sort((a, b) => a.name.localeCompare(b.name));
       } catch (error) {
-        console.error('Error al listar álbumes:', error);
         throw error;
       }
     }
@@ -343,7 +319,6 @@
         });
         return id;
       } catch (error) {
-        console.error('Error al crear álbum:', error);
         throw error;
       }
     }
@@ -379,9 +354,7 @@
             thumbUrl,
             userId: auth.currentUser.uid
           });
-        } catch (error) {
-          console.error('Error al subir foto:', file.name, error);
-        }
+        } catch (error) {}
       }
     }
 
@@ -403,7 +376,6 @@
         
         return rows;
       } catch (error) {
-        console.error('Error al obtener fotos:', error);
         throw error;
       }
     }
@@ -416,7 +388,6 @@
         const photo = querySnapshot.docs[0];
         return photo ? { docId: photo.id, ...photo.data() } : null;
       } catch (error) {
-        console.error('Error al obtener foto:', error);
         throw error;
       }
     }
@@ -431,7 +402,6 @@
           await updateDoc(doc(db, 'photos', photoDoc.id), patch);
         }
       } catch (error) {
-        console.error('Error al actualizar foto:', error);
         throw error;
       }
     }
@@ -447,13 +417,10 @@
           try {
             await deleteObject(storageRef(storage, fullUrl));
             await deleteObject(storageRef(storage, thumbUrl));
-          } catch (error) {
-            console.error('Error al eliminar archivos de Storage:', error);
-          }
+          } catch (error) {}
           await deleteDoc(doc(db, 'photos', photoDoc.id));
         }
       } catch (error) {
-        console.error('Error al eliminar foto:', error);
         throw error;
       }
     }
@@ -497,7 +464,6 @@
 
     async function init() {
       try {
-        console.log('Inicializando aplicación...');
         await ensureDefaultAlbum();
         state.albums = await listAlbums();
         if (!state.albums.find(a => a.id === 'default')) {
@@ -511,9 +477,7 @@
         }
         renderAlbums();
         await refreshPhotos();
-        console.log('Aplicación inicializada correctamente');
       } catch (error) {
-        console.error('Error al inicializar aplicación:', error);
         alert('Error al cargar la aplicación. Verifica tu conexión.');
       }
     }
@@ -533,7 +497,7 @@
           const el = list.querySelector(`small[data-count="${a.id}"]`);
           if (el) el.textContent = byAlbum[a.id] || 0;
         }
-      }).catch(error => console.error('Error al contar fotos por álbum:', error));
+      }).catch(error => {});
       
       const sel = $('#edit-album'); sel.innerHTML = '';
       for (const a of state.albums) {
@@ -560,9 +524,7 @@
           card.onclick = () => openViewer(p.id);
           grid.appendChild(card);
         }
-      } catch (error) {
-        console.error('Error al refrescar fotos:', error);
-      }
+      } catch (error) {}
     }
 
     async function openViewer(id) {
@@ -575,9 +537,7 @@
         $('#edit-album').value = p.album;
         $('#meta').textContent = `${p.width}×${p.height} · ${new Date(p.createdAt).toLocaleString()}`;
         $('#viewer').showModal();
-      } catch (error) {
-        console.error('Error al abrir visor:', error);
-      }
+      } catch (error) {}
     }
 
     // ======= Eventos =======
@@ -589,7 +549,6 @@
         await refreshPhotos(); renderAlbums();
         e.target.value = '';
       } catch (error) {
-        console.error('Error al subir fotos:', error);
         alert('Error al subir fotos. Verifica que estés autenticado.');
       }
     };
@@ -603,7 +562,6 @@
         await addPhotos(files, state.currentAlbum);
         await refreshPhotos(); renderAlbums();
       } catch (error) {
-        console.error('Error al subir fotos:', error);
         alert('Error al subir fotos. Verifica que estés autenticado.');
       }
     });
@@ -619,7 +577,6 @@
         renderAlbums();
         await refreshPhotos();
       } catch (error) {
-        console.error('Error al crear álbum:', error);
         alert('Error al crear álbum. Verifica que estés autenticado.');
       }
     };
@@ -638,7 +595,6 @@
         await refreshPhotos(); renderAlbums();
         toast('Guardado');
       } catch (error) {
-        console.error('Error al guardar cambios:', error);
         alert('Error al guardar cambios. Verifica que estés autenticado.');
       }
     };
@@ -650,7 +606,6 @@
         $('#viewer').close();
         await refreshPhotos(); renderAlbums();
       } catch (error) {
-        console.error('Error al eliminar foto:', error);
         alert('Error al eliminar foto. Verifica que estés autenticado.');
       }
     };
@@ -680,7 +635,6 @@
         const file = new Blob([json], { type: 'application/json' });
         const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = 'album-respaldo.json'; a.click(); a.remove();
       } catch (error) {
-        console.error('Error al exportar:', error);
         alert('Error al exportar datos.');
       }
     };
@@ -698,7 +652,6 @@
         renderAlbums(); await refreshPhotos();
         alert('Importación completada.');
       } catch (err) {
-        console.error('Error al importar:', err);
         alert('No se pudo importar el archivo.');
       }
       e.target.value = '';
@@ -720,9 +673,7 @@
           try {
             await deleteObject(storageRef(storage, fullUrl));
             await deleteObject(storageRef(storage, thumbUrl));
-          } catch (error) {
-            console.error('Error al eliminar archivos de Storage:', error);
-          }
+          } catch (error) {}
           await deleteDoc(doc.ref);
         }));
         await ensureDefaultAlbum();
@@ -731,7 +682,6 @@
         renderAlbums(); await refreshPhotos();
         alert('Todos los datos han sido eliminados.');
       } catch (error) {
-        console.error('Error al borrar todo:', error);
         alert('Error al borrar datos. Verifica que estés autenticado.');
       }
     };
