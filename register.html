@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Registro - Mi Álbum de Fotos</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --muted: #3a4254;
+      --text: #e7ebf3;
+      --accent: #7aa2f7;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: var(--bg);
+      color: var(--text);
+    }
+    .register-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: var(--bg);
+    }
+    .register-form {
+      background: var(--panel);
+      padding: 40px;
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 400px;
+    }
+    .register-form h2 {
+      text-align: center;
+      margin-bottom: 24px;
+      color: var(--accent);
+    }
+    .register-form input {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 8px;
+      border: 1px solid var(--muted);
+      background: #0e121a;
+      color: var(--text);
+      outline: none;
+    }
+    .register-form input:focus {
+      border-color: var(--accent);
+    }
+    .register-form button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 12px;
+      background: var(--accent);
+      color: #0b1020;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .register-form button:hover {
+      background: #5b8def;
+    }
+    .register-form .link {
+      display: block;
+      text-align: center;
+      margin-top: 16px;
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .register-form .link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="register-container">
+    <div class="register-form">
+      <h2>Crear Cuenta</h2>
+      <input type="text" id="fullName" placeholder="Nombre completo" required>
+      <input type="email" id="email" placeholder="Correo electrónico" required>
+      <input type="text" id="username" placeholder="Nombre de usuario" required>
+      <input type="password" id="password" placeholder="Contraseña" required>
+      <button id="registerBtn">Registrarse</button>
+      <a class="link" href="index.html">¿Ya tienes cuenta? Inicia sesión</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, createUserWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getFirestore, collection, addDoc, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAQHwo1RwucIRAIlqpo3GgRJNmnQlXoNDM",
+      authDomain: "album-bc4e1.firebaseapp.com",
+      projectId: "album-bc4e1",
+      storageBucket: "album-bc4e1.firebasestorage.app",
+      messagingSenderId: "1041635546059",
+      appId: "1:1041635546059:web:79ff3e516a50b5190ddc4e",
+      measurementId: "G-RWGW4F6JCT"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    document.getElementById('registerBtn').addEventListener('click', async () => {
+      const fullName = document.getElementById('fullName').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      if (!fullName || !email || !username || !password) {
+        alert('Por favor, completa todos los campos.');
+        return;
+      }
+
+      try {
+        // Verificar si el nombre de usuario ya existe
+        const usernameQuery = query(collection(db, 'usuarios'), where('username', '==', username));
+        const usernameSnapshot = await getDocs(usernameQuery);
+        if (!usernameSnapshot.empty) {
+          alert('El nombre de usuario ya está en uso.');
+          return;
+        }
+
+        // Crear usuario en Firebase Authentication
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        // Guardar datos adicionales en Firestore
+        await addDoc(collection(db, 'usuarios'), {
+          uid: user.uid,
+          fullName: fullName,
+          email: email,
+          username: username,
+          createdAt: Date.now()
+        });
+
+        alert('Registro exitoso. Ahora puedes iniciar sesión.');
+        window.location.href = 'index.html';
+      } catch (error) {
+        console.error('Error al registrarse:', error);
+        if (error.code === 'auth/email-already-in-use') {
+          alert('El correo electrónico ya está en uso.');
+        } else if (error.code === 'auth/invalid-email') {
+          alert('El correo electrónico no es válido.');
+        } else if (error.code === 'auth/weak-password') {
+          alert('La contraseña debe tener al menos 6 caracteres.');
+        } else {
+          alert('Error al registrarse. Intenta de nuevo.');
+        }
+      }
+    });
+  </script>
+</body>
+</html>
