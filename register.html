@@ -113,84 +113,71 @@
     const db = getFirestore(app);
 
     document.getElementById('registerBtn').addEventListener('click', async () => {
-      const fullName = document.getElementById('fullName').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value.trim();
+  const fullName = document.getElementById('fullName').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value.trim();
 
-      if (!fullName || !email || !username || !password) {
-        alert('Por favor, completa todos los campos.');
-        return;
-      }
+  if (!fullName || !email || !username || !password) {
+    alert('Por favor, completa todos los campos.');
+    return;
+  }
 
-      try {
-        // Verificar si el nombre de usuario ya existe
-        console.log('Verificando nombre de usuario:', username);
-        const usernameQuery = query(collection(db, 'usuarios'), where('username', '==', username));
-        const usernameSnapshot = await getDocs(usernameQuery);
-        if (!usernameSnapshot.empty) {
-          console.log('Nombre de usuario ya existe:', username);
-          alert('El nombre de usuario ya está en uso.');
-          return;
-        }
+  try {
+    // Primero crear usuario en Firebase Authentication
+    console.log('Creando usuario con email:', email);
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+    console.log('Usuario creado con UID:', user.uid);
 
-        // Crear usuario en Firebase Authentication
-        console.log('Creando usuario con email:', email);
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        console.log('Usuario creado con UID:', user.uid);
+    // Verificar si el nombre de usuario ya existe
+    console.log('Verificando nombre de usuario:', username);
+    const usernameQuery = query(collection(db, 'usuarios'), where('username', '==', username));
+    const usernameSnapshot = await getDocs(usernameQuery);
+    
+    if (!usernameSnapshot.empty) {
+      console.log('Nombre de usuario ya existe:', username);
+      // Si el username existe, eliminar el usuario recién creado
+      await user.delete();
+      alert('El nombre de usuario ya está en uso.');
+      return;
+    }
 
-        // Esperar a que el estado de autenticación se actualice
-        await new Promise((resolve, reject) => {
-          console.log('Esperando estado de autenticación para UID:', user.uid);
-          const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            if (currentUser && currentUser.uid === user.uid) {
-              console.log('Autenticación confirmada para UID:', currentUser.uid);
-              unsubscribe();
-              resolve();
-            }
-          }, (error) => {
-            console.error('Error en onAuthStateChanged:', error);
-            reject(error);
-          });
-        });
+    // Guardar datos adicionales en Firestore
+    console.log('Guardando datos en Firestore para UID:', user.uid);
+    const userDoc = {
+      uid: user.uid,
+      fullName: fullName,
+      email: email,
+      username: username,
+      createdAt: Date.now()
+    };
+    
+    await addDoc(collection(db, 'usuarios'), userDoc);
 
-        // Agregar un pequeño retraso para asegurar la propagación del estado
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Guardar datos adicionales en Firestore
-        console.log('Guardando datos en Firestore para UID:', user.uid);
-        const userDoc = {
-          uid: user.uid,
-          fullName: fullName,
-          email: email,
-          username: username,
-          createdAt: Date.now()
-        };
-        console.log('Datos a guardar:', userDoc);
-        await addDoc(collection(db, 'usuarios'), userDoc);
-
-        console.log('Registro exitoso para:', username);
-        alert('Registro exitoso. Ahora puedes iniciar sesión.');
-        window.location.href = 'index.html';
-      } catch (error) {
-        console.error('Error al registrarse:', error);
-        console.error('Código de error:', error.code);
-        console.error('Mensaje de error:', error.message);
-        if (error.code === 'auth/email-already-in-use') {
-          alert('El correo electrónico ya está en uso.');
-        } else if (error.code === 'auth/invalid-email') {
-          alert('El correo electrónico no es válido.');
-        } else if (error.code === 'auth/weak-password') {
-          alert('La contraseña debe tener al menos 6 caracteres.');
-        } else if (error.code === 'permission-denied') {
-          alert('Permisos insuficientes. Verifica las reglas de Firestore.');
-          console.error('Detalles del error de permisos:', error);
-        } else {
-          alert('Error al registrarse: ' + error.message);
-        }
-      }
-    });
+    console.log('Registro exitoso para:', username);
+    alert('Registro exitoso. Ahora puedes iniciar sesión.');
+    window.location.href = 'index.html';
+    
+  } catch (error) {
+    console.error('Error al registrarse:', error);
+    console.error('Código de error:', error.code);
+    console.error('Mensaje de error:', error.message);
+    
+    if (error.code === 'auth/email-already-in-use') {
+      alert('El correo electrónico ya está en uso.');
+    } else if (error.code === 'auth/invalid-email') {
+      alert('El correo electrónico no es válido.');
+    } else if (error.code === 'auth/weak-password') {
+      alert('La contraseña debe tener al menos 6 caracteres.');
+    } else if (error.code === 'permission-denied') {
+      alert('Error de permisos. Verifica tu conexión e inténtalo nuevamente.');
+      console.error('Detalles del error de permisos:', error);
+    } else {
+      alert('Error al registrarse: ' + error.message);
+    }
+  }
+});
   </script>
 </body>
 </html>
