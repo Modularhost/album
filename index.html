@@ -131,6 +131,7 @@
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
   import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
   import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+  import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
   // Configuración de Firebase
   const firebaseConfig = {
@@ -146,6 +147,18 @@
   const app = initializeApp(firebaseConfig);
   const storage = getStorage(app);
   const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  // Autenticación anónima para pruebas
+  async function initializeAuth() {
+    try {
+      await signInAnonymously(auth);
+      console.log('Usuario anónimo autenticado');
+    } catch (error) {
+      console.error('Error en autenticación anónima:', error);
+      alert('No se pudo autenticar. Verifica la configuración de Firebase.');
+    }
+  }
 
   // ======= Utilidades UI =======
   const $ = (s, el = document) => el.querySelector(s);
@@ -294,6 +307,7 @@
   let state = { albums: [], currentAlbum: 'default', photos: [], current: null };
 
   async function init() {
+    await initializeAuth(); // Autenticar usuario anónimo
     await ensureDefaultAlbum();
     state.albums = await listAlbums();
     if (!state.albums.find(a => a.id === 'default')) {
@@ -361,9 +375,14 @@
   $('#btn-add').onclick = () => $('#file-input').click();
   $('#file-input').onchange = async (e) => {
     const files = Array.from(e.target.files);
-    await addPhotos(files, state.currentAlbum);
-    await refreshPhotos(); renderAlbums();
-    e.target.value = '';
+    try {
+      await addPhotos(files, state.currentAlbum);
+      await refreshPhotos(); renderAlbums();
+      e.target.value = '';
+    } catch (error) {
+      console.error('Error al subir fotos:', error);
+      alert('Error al subir fotos. Verifica que estés autenticado.');
+    }
   };
 
   const dz = $('#dropzone');
@@ -371,19 +390,29 @@
   ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('dragover'); }));
   dz.addEventListener('drop', async (e) => {
     const files = Array.from(e.dataTransfer.files);
-    await addPhotos(files, state.currentAlbum);
-    await refreshPhotos(); renderAlbums();
+    try {
+      await addPhotos(files, state.currentAlbum);
+      await refreshPhotos(); renderAlbums();
+    } catch (error) {
+      console.error('Error al subir fotos:', error);
+      alert('Error al subir fotos. Verifica que estés autenticado.');
+    }
   });
 
   $('#create-album').onclick = async () => {
     const name = $('#new-album-name').value.trim();
     if (!name) return;
-    const id = await createAlbum(name);
-    state.albums = await listAlbums();
-    state.currentAlbum = id;
-    $('#new-album-name').value = '';
-    renderAlbums();
-    await refreshPhotos();
+    try {
+      const id = await createAlbum(name);
+      state.albums = await listAlbums();
+      state.currentAlbum = id;
+      $('#new-album-name').value = '';
+      renderAlbums();
+      await refreshPhotos();
+    } catch (error) {
+      console.error('Error al crear álbum:', error);
+      alert('Error al crear álbum. Verifica que estés autenticado.');
+    }
   };
 
   $('#search').oninput = () => refreshPhotos();
@@ -395,15 +424,25 @@
     const name = $('#edit-name').value.trim();
     const tags = $('#edit-tags').value.split(',').map(s => s.trim()).filter(Boolean);
     const album = $('#edit-album').value;
-    await updatePhoto(state.current.id, { name, tags, album });
-    await refreshPhotos(); renderAlbums();
-    toast('Guardado');
+    try {
+      await updatePhoto(state.current.id, { name, tags, album });
+      await refreshPhotos(); renderAlbums();
+      toast('Guardado');
+    } catch (error) {
+      console.error('Error al guardar cambios:', error);
+      alert('Error al guardar cambios. Verifica que estés autenticado.');
+    }
   };
   $('#delete').onclick = async () => {
     if (!confirm('¿Eliminar esta foto?')) return;
-    await deletePhoto(state.current.id);
-    $('#viewer').close();
-    await refreshPhotos(); renderAlbums();
+    try {
+      await deletePhoto(state.current.id);
+      $('#viewer').close();
+      await refreshPhotos(); renderAlbums();
+    } catch (error) {
+      console.error('Error al eliminar foto:', error);
+      alert('Error al eliminar foto. Verifica que estés autenticado.');
+    }
   };
   $('#download').onclick = async () => {
     const p = await getPhoto(state.current.id);
@@ -421,13 +460,18 @@
   }
 
   $('#btn-export').onclick = async () => {
-    const dump = { albums: [], photos: [] };
-    dump.albums = await listAlbums();
-    const photos = await getPhotos({ album: null });
-    dump.photos = photos.map(p => ({ ...p, blob: p.fullUrl }));
-    const json = JSON.stringify(dump);
-    const file = new Blob([json], { type: 'application/json' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = 'album-respaldo.json'; a.click(); a.remove();
+    try {
+      const dump = { albums: [], photos: [] };
+      dump.albums = await listAlbums();
+      const photos = await getPhotos({ album: null });
+      dump.photos = photos.map(p => ({ ...p, blob: p.fullUrl }));
+      const json = JSON.stringify(dump);
+      const file = new Blob([json], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = 'album-respaldo.json'; a.click(); a.remove();
+    } catch (error) {
+      console.error('Error al exportar:', error);
+      alert('Error al exportar datos.');
+    }
   };
 
   $('#import-input').onchange = async (e) => {
@@ -443,6 +487,7 @@
       renderAlbums(); await refreshPhotos();
       alert('Importación completada.');
     } catch (err) {
+      console.error('Error al importar:', err);
       alert('No se pudo importar el archivo.');
     }
     e.target.value = '';
@@ -451,25 +496,30 @@
   $('#clear-all').onclick = async (e) => {
     e.preventDefault();
     if (!confirm('Esto eliminará TODOS los álbumes y fotos guardados en Firebase. ¿Continuar?')) return;
-    const albumsRef = collection(db, 'albums');
-    const photosRef = collection(db, 'photos');
-    const albumsSnap = await getDocs(albumsRef);
-    const photosSnap = await getDocs(photosRef);
-    await Promise.all(albumsSnap.docs.map(doc => deleteDoc(doc.ref)));
-    await Promise.all(photosSnap.docs.map(async doc => {
-      const { fullUrl, thumbUrl } = doc.data();
-      try {
-        await deleteObject(storageRef(storage, fullUrl));
-        await deleteObject(storageRef(storage, thumbUrl));
-      } catch (error) {
-        console.error('Error al eliminar archivos de Storage:', error);
-      }
-      await deleteDoc(doc.ref);
-    }));
-    await ensureDefaultAlbum();
-    state.albums = await listAlbums();
-    state.currentAlbum = 'default';
-    renderAlbums(); await refreshPhotos();
+    try {
+      const albumsRef = collection(db, 'albums');
+      const photosRef = collection(db, 'photos');
+      const albumsSnap = await getDocs(albumsRef);
+      const photosSnap = await getDocs(photosRef);
+      await Promise.all(albumsSnap.docs.map(doc => deleteDoc(doc.ref)));
+      await Promise.all(photosSnap.docs.map(async doc => {
+        const { fullUrl, thumbUrl } = doc.data();
+        try {
+          await deleteObject(storageRef(storage, fullUrl));
+          await deleteObject(storageRef(storage, thumbUrl));
+        } catch (error) {
+          console.error('Error al eliminar archivos de Storage:', error);
+        }
+        await deleteDoc(doc.ref);
+      }));
+      await ensureDefaultAlbum();
+      state.albums = await listAlbums();
+      state.currentAlbum = 'default';
+      renderAlbums(); await refreshPhotos();
+    } catch (error) {
+      console.error('Error al borrar todo:', error);
+      alert('Error al borrar datos. Verifica que estés autenticado.');
+    }
   };
 
   init();
