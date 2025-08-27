@@ -63,13 +63,31 @@
 
     .footer{display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-top:1px solid #222630; background:#0d1118}
     .link{color:var(--accent); text-decoration:none}
+
+    .login-container{display:flex;justify-content:center;align-items:center;height:100vh;background:#f5f5f5;}
+    .login-form{background:#fff;padding:40px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.1);width:100%;max-width:400px;}
+    .login-form h2{text-align:center;margin-bottom:24px;color:#2563eb;}
+    .login-form input{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #ccc;}
+    .login-form button{width:100%;padding:12px;margin-top:12px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;}
+    .login-form button:hover{background:#1d4ed8;}
+    .hidden{display:none;}
   </style>
 </head>
 <body>
-  <div class="app">
+  <div class="login-container" id="loginContainer">
+    <div class="login-form">
+      <h2>Iniciar Sesión</h2>
+      <input type="text" id="loginUsername" placeholder="Nombre de usuario">
+      <input type="password" id="loginPassword" placeholder="Contraseña">
+      <button id="loginBtn">Iniciar Sesión</button>
+    </div>
+  </div>
+
+  <div class="app hidden" id="app">
     <header>
       <h1>📸 Mi Álbum de Fotos</h1>
       <div class="spacer"></div>
+      <button class="btn ghost" id="btn-logout" title="Cerrar sesión">Cerrar Sesión</button>
       <button class="btn ghost" id="btn-export" title="Exportar respaldo (JSON)">Exportar</button>
       <label class="btn ghost" for="import-input" title="Importar respaldo (JSON)">Importar</label>
       <input id="import-input" type="file" accept="application/json" hidden />
@@ -103,426 +121,475 @@
       <section id="grid" class="grid"></section>
       <div id="empty" class="empty" style="display:none">Aún no hay fotos en este álbum.</div>
     </main>
-  </div>
 
-  <dialog id="viewer">
-    <div class="lightbox">
-      <div class="media"><img id="viewer-img" alt="" /></div>
-      <div class="side">
-        <div class="row wrap"><button class="btn" id="prev">◀</button><button class="btn" id="next">▶</button><button class="btn" id="download">Descargar</button><button class="btn danger" id="delete">Eliminar</button></div>
-        <label>Nombre<input id="edit-name" class="input" /></label>
-        <label>Álbum<select id="edit-album" class="select"></select></label>
-        <label>Etiquetas (separadas por coma)<input id="edit-tags" class="input" placeholder="familia, viaje" /></label>
-        <div class="row wrap">
-          <button class="btn primary" id="save">Guardar cambios</button>
-          <span style="opacity:.7" id="meta"></span>
+    <dialog id="viewer">
+      <div class="lightbox">
+        <div class="media"><img id="viewer-img" alt="" /></div>
+        <div class="side">
+          <div class="row wrap"><button class="btn" id="prev">◀</button><button class="btn" id="next">▶</button><button class="btn" id="download">Descargar</button><button class="btn danger" id="delete">Eliminar</button></div>
+          <label>Nombre<input id="edit-name" class="input" /></label>
+          <label>Álbum<select id="edit-album" class="select"></select></label>
+          <label>Etiquetas (separadas por coma)<input id="edit-tags" class="input" placeholder="familia, viaje" /></label>
+          <div class="row wrap">
+            <button class="btn primary" id="save">Guardar cambios</button>
+            <span style="opacity:.7" id="meta"></span>
+          </div>
         </div>
       </div>
-    </div>
-  </dialog>
+    </dialog>
 
-  <footer class="footer">
-    <small>Los datos se guardan en Firebase Storage y Firestore.</small>
-    <a class="link" href="#" id="clear-all">Borrar todo</a>
-  </footer>
+    <footer class="footer">
+      <small>Los datos se guardan en Firebase Storage y Firestore.</small>
+      <a class="link" href="#" id="clear-all">Borrar todo</a>
+    </footer>
+  </div>
 
-<script type="module">
-  // Importar Firebase
-  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-  import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
-  import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-  import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+    import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
+    import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-  // Configuración de Firebase
-  const firebaseConfig = {
-    apiKey: "AIzaSyAQHwo1RwucIRAIlqpo3GgRJNmnQlXoNDM",
-    authDomain: "album-bc4e1.firebaseapp.com",
-    projectId: "album-bc4e1",
-    storageBucket: "album-bc4e1.firebasestorage.app",
-    messagingSenderId: "1041635546059",
-    appId: "1:1041635546059:web:79ff3e516a50b5190ddc4e",
-    measurementId: "G-RWGW4F6JCT"
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyAQHwo1RwucIRAIlqpo3GgRJNmnQlXoNDM",
+      authDomain: "album-bc4e1.firebaseapp.com",
+      projectId: "album-bc4e1",
+      storageBucket: "album-bc4e1.firebasestorage.app",
+      messagingSenderId: "1041635546059",
+      appId: "1:1041635546059:web:79ff3e516a50b5190ddc4e",
+      measurementId: "G-RWGW4F6JCT"
+    };
 
-  const app = initializeApp(firebaseConfig);
-  const storage = getStorage(app);
-  const db = getFirestore(app);
-  const auth = getAuth(app);
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const storage = getStorage(app);
+    const db = getFirestore(app);
 
-  // Autenticación anónima para pruebas
-  async function initializeAuth() {
-    try {
-      await signInAnonymously(auth);
-      console.log('Usuario anónimo autenticado');
-    } catch (error) {
-      console.error('Error en autenticación anónima:', error);
-      alert('No se pudo autenticar. Verifica la configuración de Firebase.');
-    }
-  }
+    // Mostrar u ocultar la interfaz según el estado de autenticación
+    const loginContainer = document.getElementById('loginContainer');
+    const appContainer = document.getElementById('app');
 
-  // ======= Utilidades UI =======
-  const $ = (s, el = document) => el.querySelector(s);
-  const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
-  const toast = (msg) => { console.log(msg); };
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        loginContainer.classList.add('hidden');
+        appContainer.classList.remove('hidden');
+        init();
+      } else {
+        loginContainer.classList.remove('hidden');
+        appContainer.classList.add('hidden');
+      }
+    });
 
-  // ======= Funciones de Firebase =======
-  async function ensureDefaultAlbum() {
-    const albumsRef = collection(db, 'albums');
-    const querySnapshot = await getDocs(albumsRef);
-    const hasDefault = querySnapshot.docs.some(doc => doc.data().id === 'default');
-    if (!hasDefault) {
-      await addDoc(albumsRef, { id: 'default', name: 'General', createdAt: Date.now() });
-    }
-  }
+    // Iniciar sesión
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value.trim();
 
-  async function listAlbums() {
-    const albumsRef = collection(db, 'albums');
-    const querySnapshot = await getDocs(albumsRef);
-    const albums = querySnapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
-    return albums.sort((a, b) => a.name.localeCompare(b.name));
-  }
+      if (!username || !password) {
+        alert('Ingrese nombre de usuario y contraseña');
+        return;
+      }
 
-  async function createAlbum(name) {
-    const id = crypto.randomUUID();
-    await addDoc(collection(db, 'albums'), { id, name, createdAt: Date.now() });
-    return id;
-  }
-
-  async function addPhotos(files, album) {
-    for (const file of files) {
-      if (!file.type.startsWith('image/')) continue;
-      const { thumb, width, height } = await makeThumb(file);
-      const id = crypto.randomUUID();
-      
-      // Subir imagen completa a Firebase Storage
-      const fullRef = storageRef(storage, `photos/${id}/${file.name}`);
-      await uploadBytes(fullRef, file);
-      const fullUrl = await getDownloadURL(fullRef);
-
-      // Subir miniatura a Firebase Storage
-      const thumbBlob = dataURLToBlob(thumb);
-      const thumbRef = storageRef(storage, `photos/${id}/thumb_${file.name}`);
-      await uploadBytes(thumbRef, thumbBlob);
-      const thumbUrl = await getDownloadURL(thumbRef);
-
-      // Guardar metadatos en Firestore
-      await addDoc(collection(db, 'photos'), {
-        id,
-        album,
-        name: file.name.replace(/\.[^.]+$/,''),
-        createdAt: Date.now(),
-        tags: [],
-        width,
-        height,
-        fullUrl,
-        thumbUrl
-      });
-    }
-  }
-
-  async function getPhotos({ album, search, sort = 'newest' }) {
-    const photosRef = collection(db, 'photos');
-    const querySnapshot = await getDocs(photosRef);
-    let rows = querySnapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
-    
-    if (album) rows = rows.filter(p => p.album === album);
-    if (search) {
-      const q = search.toLowerCase();
-      rows = rows.filter(p => p.name.toLowerCase().includes(q) || (p.tags || []).join(',').toLowerCase().includes(q));
-    }
-    if (sort === 'newest') rows.sort((a, b) => b.createdAt - a.createdAt);
-    if (sort === 'oldest') rows.sort((a, b) => a.createdAt - b.createdAt);
-    if (sort === 'name') rows.sort((a, b) => a.name.localeCompare(b.name));
-    
-    return rows;
-  }
-
-  async function getPhoto(id) {
-    const photosRef = collection(db, 'photos');
-    const querySnapshot = await getDocs(photosRef);
-    const photo = querySnapshot.docs.find(doc => doc.data().id === id);
-    return photo ? { docId: photo.id, ...photo.data() } : null;
-  }
-
-  async function updatePhoto(id, patch) {
-    const photosRef = collection(db, 'photos');
-    const querySnapshot = await getDocs(photosRef);
-    const photoDoc = querySnapshot.docs.find(doc => doc.data().id === id);
-    if (photoDoc) {
-      await updateDoc(doc(db, 'photos', photoDoc.id), patch);
-    }
-  }
-
-  async function deletePhoto(id) {
-    const photosRef = collection(db, 'photos');
-    const querySnapshot = await getDocs(photosRef);
-    const photoDoc = querySnapshot.docs.find(doc => doc.data().id === id);
-    if (photoDoc) {
-      const { fullUrl, thumbUrl } = photoDoc.data();
       try {
-        await deleteObject(storageRef(storage, fullUrl));
-        await deleteObject(storageRef(storage, thumbUrl));
+        // Buscar el correo asociado al nombre de usuario
+        const usernameQuery = query(collection(db, 'usuarios'), where('username', '==', username));
+        const usernameSnapshot = await getDocs(usernameQuery);
+
+        if (usernameSnapshot.empty) {
+          alert('Nombre de usuario no encontrado');
+          return;
+        }
+
+        const userDoc = usernameSnapshot.docs[0].data();
+        const email = userDoc.email;
+
+        // Iniciar sesión con correo y contraseña
+        await signInWithEmailAndPassword(auth, email, password);
       } catch (error) {
-        console.error('Error al eliminar archivos de Storage:', error);
-      }
-      await deleteDoc(doc(db, 'photos', photoDoc.id));
-    }
-  }
-
-  // Thumbnails
-  function bitmapToBlob(bitmap, type = 'image/jpeg', quality = 0.9) {
-    return new Promise((resolve) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = bitmap.width; canvas.height = bitmap.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(bitmap, 0, 0);
-      canvas.toBlob(resolve, type, quality);
-    });
-  }
-
-  function dataURLToBlob(dataURL) {
-    const [meta, b64] = dataURL.split(',');
-    const mime = /data:(.*?);/i.exec(meta)[1];
-    const bin = atob(b64);
-    const arr = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-    return new Blob([arr], { type: mime });
-  }
-
-  async function makeThumb(file) {
-    const bmp = await createImageBitmap(file);
-    const maxSide = 480;
-    const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
-    const w = Math.round(bmp.width * scale);
-    const h = Math.round(bmp.height * scale);
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(bmp, 0, 0, w, h);
-    const thumb = canvas.toDataURL('image/jpeg', 0.8);
-    return { thumb, width: bmp.width, height: bmp.height };
-  }
-
-  // ======= Lógica de UI =======
-  let state = { albums: [], currentAlbum: 'default', photos: [], current: null };
-
-  async function init() {
-    await initializeAuth(); // Autenticar usuario anónimo
-    await ensureDefaultAlbum();
-    state.albums = await listAlbums();
-    if (!state.albums.find(a => a.id === 'default')) {
-      await addDoc(collection(db, 'albums'), { id: 'default', name: 'General', createdAt: Date.now() });
-      state.albums = await listAlbums();
-    }
-    renderAlbums();
-    await refreshPhotos();
-  }
-
-  function renderAlbums() {
-    const list = $('#album-list'); list.innerHTML = '';
-    for (const a of state.albums) {
-      const el = document.createElement('div');
-      el.className = 'album' + (a.id === state.currentAlbum ? ' active' : '');
-      el.innerHTML = `<span class="name">${a.name}</span><small data-count="${a.id}">…</small>`;
-      el.onclick = () => { state.currentAlbum = a.id; refreshPhotos(); renderAlbums(); };
-      list.appendChild(el);
-    }
-    getPhotos({ album: null }).then(rows => {
-      const byAlbum = rows.reduce((acc, p) => { acc[p.album] = (acc[p.album] || 0) + 1; return acc; }, {});
-      for (const a of state.albums) {
-        const el = list.querySelector(`small[data-count="${a.id}"]`);
-        if (el) el.textContent = byAlbum[a.id] || 0;
+        console.error('Error en inicio de sesión:', error);
+        alert('Nombre de usuario o contraseña incorrectos');
       }
     });
-    const sel = $('#edit-album'); sel.innerHTML = '';
-    for (const a of state.albums) {
-      const opt = document.createElement('option'); opt.value = a.id; opt.textContent = a.name; sel.appendChild(opt);
-    }
-  }
 
-  async function refreshPhotos() {
-    const q = $('#search').value.trim();
-    const sort = $('#sort').value;
-    state.photos = await getPhotos({ album: state.currentAlbum, search: q, sort });
-    const grid = $('#grid'); grid.innerHTML = '';
-    $('#empty').style.display = state.photos.length ? 'none' : 'block';
-    for (const p of state.photos) {
-      const card = document.createElement('div');
-      card.className = 'card';
-      const img = document.createElement('img'); img.src = p.thumbUrl; img.alt = p.name; img.className = 'thumb';
-      const meta = document.createElement('div'); meta.className = 'meta';
-      const date = new Date(p.createdAt).toLocaleDateString();
-      const tag = (p.tags && p.tags[0]) ? `#${p.tags[0]}` : `${p.width}×${p.height}`;
-      meta.innerHTML = `<span class="chip">${date}</span><span class="chip">${tag}</span>`;
-      card.appendChild(img); card.appendChild(meta);
-      card.onclick = () => openViewer(p.id);
-      grid.appendChild(card);
-    }
-  }
+    // Cerrar sesión
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+      try {
+        await signOut(auth);
+        alert('Sesión cerrada');
+      } catch (error) {
+        console.error('Error al cerrar sesión:', error);
+        alert('Error al cerrar sesión');
+      }
+    });
 
-  async function openViewer(id) {
-    state.current = await getPhoto(id);
-    const p = state.current;
-    $('#viewer-img').src = p.fullUrl;
-    $('#edit-name').value = p.name || '';
-    $('#edit-tags').value = (p.tags || []).join(', ');
-    $('#edit-album').value = p.album;
-    $('#meta').textContent = `${p.width}×${p.height} · ${new Date(p.createdAt).toLocaleString()}`;
-    $('#viewer').showModal();
-  }
+    // ======= Utilidades UI =======
+    const $ = (s, el = document) => el.querySelector(s);
+    const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
+    const toast = (msg) => { console.log(msg); };
 
-  // ======= Eventos =======
-  $('#btn-add').onclick = () => $('#file-input').click();
-  $('#file-input').onchange = async (e) => {
-    const files = Array.from(e.target.files);
-    try {
-      await addPhotos(files, state.currentAlbum);
-      await refreshPhotos(); renderAlbums();
-      e.target.value = '';
-    } catch (error) {
-      console.error('Error al subir fotos:', error);
-      alert('Error al subir fotos. Verifica que estés autenticado.');
-    }
-  };
-
-  const dz = $('#dropzone');
-  ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('dragover'); }));
-  ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('dragover'); }));
-  dz.addEventListener('drop', async (e) => {
-    const files = Array.from(e.dataTransfer.files);
-    try {
-      await addPhotos(files, state.currentAlbum);
-      await refreshPhotos(); renderAlbums();
-    } catch (error) {
-      console.error('Error al subir fotos:', error);
-      alert('Error al subir fotos. Verifica que estés autenticado.');
-    }
-  });
-
-  $('#create-album').onclick = async () => {
-    const name = $('#new-album-name').value.trim();
-    if (!name) return;
-    try {
-      const id = await createAlbum(name);
-      state.albums = await listAlbums();
-      state.currentAlbum = id;
-      $('#new-album-name').value = '';
-      renderAlbums();
-      await refreshPhotos();
-    } catch (error) {
-      console.error('Error al crear álbum:', error);
-      alert('Error al crear álbum. Verifica que estés autenticado.');
-    }
-  };
-
-  $('#search').oninput = () => refreshPhotos();
-  $('#sort').onchange = () => refreshPhotos();
-
-  $('#prev').onclick = () => navViewer(-1);
-  $('#next').onclick = () => navViewer(1);
-  $('#save').onclick = async () => {
-    const name = $('#edit-name').value.trim();
-    const tags = $('#edit-tags').value.split(',').map(s => s.trim()).filter(Boolean);
-    const album = $('#edit-album').value;
-    try {
-      await updatePhoto(state.current.id, { name, tags, album });
-      await refreshPhotos(); renderAlbums();
-      toast('Guardado');
-    } catch (error) {
-      console.error('Error al guardar cambios:', error);
-      alert('Error al guardar cambios. Verifica que estés autenticado.');
-    }
-  };
-  $('#delete').onclick = async () => {
-    if (!confirm('¿Eliminar esta foto?')) return;
-    try {
-      await deletePhoto(state.current.id);
-      $('#viewer').close();
-      await refreshPhotos(); renderAlbums();
-    } catch (error) {
-      console.error('Error al eliminar foto:', error);
-      alert('Error al eliminar foto. Verifica que estés autenticado.');
-    }
-  };
-  $('#download').onclick = async () => {
-    const p = await getPhoto(state.current.id);
-    const a = document.createElement('a');
-    a.href = p.fullUrl;
-    a.download = (p.name || 'foto') + '.jpg';
-    document.body.appendChild(a); a.click(); a.remove();
-  };
-
-  function navViewer(dir) {
-    if (!state.current) return;
-    const i = state.photos.findIndex(x => x.id === state.current.id);
-    let j = i + dir; if (j < 0) j = state.photos.length - 1; if (j >= state.photos.length) j = 0;
-    openViewer(state.photos[j].id);
-  }
-
-  $('#btn-export').onclick = async () => {
-    try {
-      const dump = { albums: [], photos: [] };
-      dump.albums = await listAlbums();
-      const photos = await getPhotos({ album: null });
-      dump.photos = photos.map(p => ({ ...p, blob: p.fullUrl }));
-      const json = JSON.stringify(dump);
-      const file = new Blob([json], { type: 'application/json' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = 'album-respaldo.json'; a.click(); a.remove();
-    } catch (error) {
-      console.error('Error al exportar:', error);
-      alert('Error al exportar datos.');
-    }
-  };
-
-  $('#import-input').onchange = async (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    const text = await file.text();
-    try {
-      const dump = JSON.parse(text);
+    // ======= Funciones de Firebase =======
+    async function ensureDefaultAlbum() {
       const albumsRef = collection(db, 'albums');
-      await Promise.all(dump.albums.map(a => addDoc(albumsRef, a)));
-      const photosRef = collection(db, 'photos');
-      await Promise.all(dump.photos.map(p => addDoc(photosRef, { ...p, fullUrl: p.blob, thumbUrl: p.blob })));
-      state.albums = await listAlbums();
-      renderAlbums(); await refreshPhotos();
-      alert('Importación completada.');
-    } catch (err) {
-      console.error('Error al importar:', err);
-      alert('No se pudo importar el archivo.');
+      const querySnapshot = await getDocs(albumsRef);
+      const hasDefault = querySnapshot.docs.some(doc => doc.data().id === 'default');
+      if (!hasDefault) {
+        await addDoc(albumsRef, { id: 'default', name: 'General', createdAt: Date.now(), userId: auth.currentUser.uid });
+      }
     }
-    e.target.value = '';
-  };
 
-  $('#clear-all').onclick = async (e) => {
-    e.preventDefault();
-    if (!confirm('Esto eliminará TODOS los álbumes y fotos guardados en Firebase. ¿Continuar?')) return;
-    try {
+    async function listAlbums() {
       const albumsRef = collection(db, 'albums');
+      const q = query(albumsRef, where('userId', '==', auth.currentUser.uid));
+      const querySnapshot = await getDocs(q);
+      const albums = querySnapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
+      return albums.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    async function createAlbum(name) {
+      const id = crypto.randomUUID();
+      await addDoc(collection(db, 'albums'), { id, name, createdAt: Date.now(), userId: auth.currentUser.uid });
+      return id;
+    }
+
+    async function addPhotos(files, album) {
+      for (const file of files) {
+        if (!file.type.startsWith('image/')) continue;
+        const { thumb, width, height } = await makeThumb(file);
+        const id = crypto.randomUUID();
+        
+        // Subir imagen completa a Firebase Storage
+        const fullRef = storageRef(storage, `photos/${auth.currentUser.uid}/${id}/${file.name}`);
+        await uploadBytes(fullRef, file);
+        const fullUrl = await getDownloadURL(fullRef);
+
+        // Subir miniatura a Firebase Storage
+        const thumbBlob = dataURLToBlob(thumb);
+        const thumbRef = storageRef(storage, `photos/${auth.currentUser.uid}/${id}/thumb_${file.name}`);
+        await uploadBytes(thumbRef, thumbBlob);
+        const thumbUrl = await getDownloadURL(thumbRef);
+
+        // Guardar metadatos en Firestore
+        await addDoc(collection(db, 'photos'), {
+          id,
+          album,
+          name: file.name.replace(/\.[^.]+$/,''),
+          createdAt: Date.now(),
+          tags: [],
+          width,
+          height,
+          fullUrl,
+          thumbUrl,
+          userId: auth.currentUser.uid
+        });
+      }
+    }
+
+    async function getPhotos({ album, search, sort = 'newest' }) {
       const photosRef = collection(db, 'photos');
-      const albumsSnap = await getDocs(albumsRef);
-      const photosSnap = await getDocs(photosRef);
-      await Promise.all(albumsSnap.docs.map(doc => deleteDoc(doc.ref)));
-      await Promise.all(photosSnap.docs.map(async doc => {
-        const { fullUrl, thumbUrl } = doc.data();
+      const q = query(photosRef, where('userId', '==', auth.currentUser.uid));
+      const querySnapshot = await getDocs(q);
+      let rows = querySnapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
+      
+      if (album) rows = rows.filter(p => p.album === album);
+      if (search) {
+        const q = search.toLowerCase();
+        rows = rows.filter(p => p.name.toLowerCase().includes(q) || (p.tags || []).join(',').toLowerCase().includes(q));
+      }
+      if (sort === 'newest') rows.sort((a, b) => b.createdAt - a.createdAt);
+      if (sort === 'oldest') rows.sort((a, b) => a.createdAt - b.createdAt);
+      if (sort === 'name') rows.sort((a, b) => a.name.localeCompare(b.name));
+      
+      return rows;
+    }
+
+    async function getPhoto(id) {
+      const photosRef = collection(db, 'photos');
+      const q = query(photosRef, where('id', '==', id), where('userId', '==', auth.currentUser.uid));
+      const querySnapshot = await getDocs(q);
+      const photo = querySnapshot.docs[0];
+      return photo ? { docId: photo.id, ...photo.data() } : null;
+    }
+
+    async function updatePhoto(id, patch) {
+      const photosRef = collection(db, 'photos');
+      const q = query(photosRef, where('id', '==', id), where('userId', '==', auth.currentUser.uid));
+      const querySnapshot = await getDocs(q);
+      const photoDoc = querySnapshot.docs[0];
+      if (photoDoc) {
+        await updateDoc(doc(db, 'photos', photoDoc.id), patch);
+      }
+    }
+
+    async function deletePhoto(id) {
+      const photosRef = collection(db, 'photos');
+      const q = query(photosRef, where('id', '==', id), where('userId', '==', auth.currentUser.uid));
+      const querySnapshot = await getDocs(q);
+      const photoDoc = querySnapshot.docs[0];
+      if (photoDoc) {
+        const { fullUrl, thumbUrl } = photoDoc.data();
         try {
           await deleteObject(storageRef(storage, fullUrl));
           await deleteObject(storageRef(storage, thumbUrl));
         } catch (error) {
           console.error('Error al eliminar archivos de Storage:', error);
         }
-        await deleteDoc(doc.ref);
-      }));
+        await deleteDoc(doc(db, 'photos', photoDoc.id));
+      }
+    }
+
+    // Thumbnails
+    function bitmapToBlob(bitmap, type = 'image/jpeg', quality = 0.9) {
+      return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width; canvas.height = bitmap.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(bitmap, 0, 0);
+        canvas.toBlob(resolve, type, quality);
+      });
+    }
+
+    function dataURLToBlob(dataURL) {
+      const [meta, b64] = dataURL.split(',');
+      const mime = /data:(.*?);/i.exec(meta)[1];
+      const bin = atob(b64);
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      return new Blob([arr], { type: mime });
+    }
+
+    async function makeThumb(file) {
+      const bmp = await createImageBitmap(file);
+      const maxSide = 480;
+      const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+      const w = Math.round(bmp.width * scale);
+      const h = Math.round(bmp.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bmp, 0, 0, w, h);
+      const thumb = canvas.toDataURL('image/jpeg', 0.8);
+      return { thumb, width: bmp.width, height: bmp.height };
+    }
+
+    // ======= Lógica de UI =======
+    let state = { albums: [], currentAlbum: 'default', photos: [], current: null };
+
+    async function init() {
       await ensureDefaultAlbum();
       state.albums = await listAlbums();
-      state.currentAlbum = 'default';
-      renderAlbums(); await refreshPhotos();
-    } catch (error) {
-      console.error('Error al borrar todo:', error);
-      alert('Error al borrar datos. Verifica que estés autenticado.');
+      if (!state.albums.find(a => a.id === 'default')) {
+        await addDoc(collection(db, 'albums'), { id: 'default', name: 'General', createdAt: Date.now(), userId: auth.currentUser.uid });
+        state.albums = await listAlbums();
+      }
+      renderAlbums();
+      await refreshPhotos();
     }
-  };
 
-  init();
-</script>
+    function renderAlbums() {
+      const list = $('#album-list'); list.innerHTML = '';
+      for (const a of state.albums) {
+        const el = document.createElement('div');
+        el.className = 'album' + (a.id === state.currentAlbum ? ' active' : '');
+        el.innerHTML = `<span class="name">${a.name}</span><small data-count="${a.id}">…</small>`;
+        el.onclick = () => { state.currentAlbum = a.id; refreshPhotos(); renderAlbums(); };
+        list.appendChild(el);
+      }
+      getPhotos({ album: null }).then(rows => {
+        const byAlbum = rows.reduce((acc, p) => { acc[p.album] = (acc[p.album] || 0) + 1; return acc; }, {});
+        for (const a of state.albums) {
+          const el = list.querySelector(`small[data-count="${a.id}"]`);
+          if (el) el.textContent = byAlbum[a.id] || 0;
+        }
+      });
+      const sel = $('#edit-album'); sel.innerHTML = '';
+      for (const a of state.albums) {
+        const opt = document.createElement('option'); opt.value = a.id; opt.textContent = a.name; sel.appendChild(opt);
+      }
+    }
+
+    async function refreshPhotos() {
+      const q = $('#search').value.trim();
+      const sort = $('#sort').value;
+      state.photos = await getPhotos({ album: state.currentAlbum, search: q, sort });
+      const grid = $('#grid'); grid.innerHTML = '';
+      $('#empty').style.display = state.photos.length ? 'none' : 'block';
+      for (const p of state.photos) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const img = document.createElement('img'); img.src = p.thumbUrl; img.alt = p.name; img.className = 'thumb';
+        const meta = document.createElement('div'); meta.className = 'meta';
+        const date = new Date(p.createdAt).toLocaleDateString();
+        const tag = (p.tags && p.tags[0]) ? `#${p.tags[0]}` : `${p.width}×${p.height}`;
+        meta.innerHTML = `<span class="chip">${date}</span><span class="chip">${tag}</span>`;
+        card.appendChild(img); card.appendChild(meta);
+        card.onclick = () => openViewer(p.id);
+        grid.appendChild(card);
+      }
+    }
+
+    async function openViewer(id) {
+      state.current = await getPhoto(id);
+      const p = state.current;
+      $('#viewer-img').src = p.fullUrl;
+      $('#edit-name').value = p.name || '';
+      $('#edit-tags').value = (p.tags || []).join(', ');
+      $('#edit-album').value = p.album;
+      $('#meta').textContent = `${p.width}×${p.height} · ${new Date(p.createdAt).toLocaleString()}`;
+      $('#viewer').showModal();
+    }
+
+    // ======= Eventos =======
+    $('#btn-add').onclick = () => $('#file-input').click();
+    $('#file-input').onchange = async (e) => {
+      const files = Array.from(e.target.files);
+      try {
+        await addPhotos(files, state.currentAlbum);
+        await refreshPhotos(); renderAlbums();
+        e.target.value = '';
+      } catch (error) {
+        console.error('Error al subir fotos:', error);
+        alert('Error al subir fotos. Verifica que estés autenticado.');
+      }
+    };
+
+    const dz = $('#dropzone');
+    ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('dragover'); }));
+    ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('dragover'); }));
+    dz.addEventListener('drop', async (e) => {
+      const files = Array.from(e.dataTransfer.files);
+      try {
+        await addPhotos(files, state.currentAlbum);
+        await refreshPhotos(); renderAlbums();
+      } catch (error) {
+        console.error('Error al subir fotos:', error);
+        alert('Error al subir fotos. Verifica que estés autenticado.');
+      }
+    });
+
+    $('#create-album').onclick = async () => {
+      const name = $('#new-album-name').value.trim();
+      if (!name) return;
+      try {
+        const id = await createAlbum(name);
+        state.albums = await listAlbums();
+        state.currentAlbum = id;
+        $('#new-album-name').value = '';
+        renderAlbums();
+        await refreshPhotos();
+      } catch (error) {
+        console.error('Error al crear álbum:', error);
+        alert('Error al crear álbum. Verifica que estés autenticado.');
+      }
+    };
+
+    $('#search').oninput = () => refreshPhotos();
+    $('#sort').onchange = () => refreshPhotos();
+
+    $('#prev').onclick = () => navViewer(-1);
+    $('#next').onclick = () => navViewer(1);
+    $('#save').onclick = async () => {
+      const name = $('#edit-name').value.trim();
+      const tags = $('#edit-tags').value.split(',').map(s => s.trim()).filter(Boolean);
+      const album = $('#edit-album').value;
+      try {
+        await updatePhoto(state.current.id, { name, tags, album });
+        await refreshPhotos(); renderAlbums();
+        toast('Guardado');
+      } catch (error) {
+        console.error('Error al guardar cambios:', error);
+        alert('Error al guardar cambios. Verifica que estés autenticado.');
+      }
+    };
+    $('#delete').onclick = async () => {
+      if (!confirm('¿Eliminar esta foto?')) return;
+      try {
+        await deletePhoto(state.current.id);
+        $('#viewer').close();
+        await refreshPhotos(); renderAlbums();
+      } catch (error) {
+        console.error('Error al eliminar foto:', error);
+        alert('Error al eliminar foto. Verifica que estés autenticado.');
+      }
+    };
+    $('#download').onclick = async () => {
+      const p = await getPhoto(state.current.id);
+      const a = document.createElement('a');
+      a.href = p.fullUrl;
+      a.download = (p.name || 'foto') + '.jpg';
+      document.body.appendChild(a); a.click(); a.remove();
+    };
+
+    function navViewer(dir) {
+      if (!state.current) return;
+      const i = state.photos.findIndex(x => x.id === state.current.id);
+      let j = i + dir; if (j < 0) j = state.photos.length - 1; if (j >= state.photos.length) j = 0;
+      openViewer(state.photos[j].id);
+    }
+
+    $('#btn-export').onclick = async () => {
+      try {
+        const dump = { albums: [], photos: [] };
+        dump.albums = await listAlbums();
+        const photos = await getPhotos({ album: null });
+        dump.photos = photos.map(p => ({ ...p, blob: p.fullUrl }));
+        const json = JSON.stringify(dump);
+        const file = new Blob([json], { type: 'application/json' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = 'album-respaldo.json'; a.click(); a.remove();
+      } catch (error) {
+        console.error('Error al exportar:', error);
+        alert('Error al exportar datos.');
+      }
+    };
+
+    $('#import-input').onchange = async (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const text = await file.text();
+      try {
+        const dump = JSON.parse(text);
+        const albumsRef = collection(db, 'albums');
+        await Promise.all(dump.albums.map(a => addDoc(albumsRef, { ...a, userId: auth.currentUser.uid })));
+        const photosRef = collection(db, 'photos');
+        await Promise.all(dump.photos.map(p => addDoc(photosRef, { ...p, fullUrl: p.blob, thumbUrl: p.blob, userId: auth.currentUser.uid })));
+        state.albums = await listAlbums();
+        renderAlbums(); await refreshPhotos();
+        alert('Importación completada.');
+      } catch (err) {
+        console.error('Error al importar:', err);
+        alert('No se pudo importar el archivo.');
+      }
+      e.target.value = '';
+    };
+
+    $('#clear-all').onclick = async (e) => {
+      e.preventDefault();
+      if (!confirm('Esto eliminará TODOS los álbumes y fotos guardados en Firebase. ¿Continuar?')) return;
+      try {
+        const albumsRef = collection(db, 'albums');
+        const photosRef = collection(db, 'photos');
+        const albumsQuery = query(albumsRef, where('userId', '==', auth.currentUser.uid));
+        const photosQuery = query(photosRef, where('userId', '==', auth.currentUser.uid));
+        const albumsSnap = await getDocs(albumsQuery);
+        const photosSnap = await getDocs(photosQuery);
+        await Promise.all(albumsSnap.docs.map(doc => deleteDoc(doc.ref)));
+        await Promise.all(photosSnap.docs.map(async doc => {
+          const { fullUrl, thumbUrl } = doc.data();
+          try {
+            await deleteObject(storageRef(storage, fullUrl));
+            await deleteObject(storageRef(storage, thumbUrl));
+          } catch (error) {
+            console.error('Error al eliminar archivos de Storage:', error);
+          }
+          await deleteDoc(doc.ref);
+        }));
+        await ensureDefaultAlbum();
+        state.albums = await listAlbums();
+        state.currentAlbum = 'default';
+        renderAlbums(); await refreshPhotos();
+      } catch (error) {
+        console.error('Error al borrar todo:', error);
+        alert('Error al borrar datos. Verifica que estés autenticado.');
+      }
+    };
+  </script>
 </body>
 </html>
