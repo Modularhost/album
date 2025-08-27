@@ -74,14 +74,15 @@
   </style>
 </head>
 <body>
-  <div class="login-container" id="loginContainer">
-    <div class="login-form">
-      <h2>Iniciar Sesión</h2>
-      <input type="text" id="loginUsername" placeholder="Nombre de usuario">
-      <input type="password" id="loginPassword" placeholder="Contraseña">
-      <button id="loginBtn">Iniciar Sesión</button>
-    </div>
+<div class="login-container" id="loginContainer">
+  <div class="login-form">
+    <h2>Iniciar Sesión</h2>
+    <input type="email" id="loginEmail" placeholder="Correo electrónico">
+    <input type="password" id="loginPassword" placeholder="Contraseña">
+    <button id="loginBtn">Iniciar Sesión</button>
+    <a class="link" href="register.html">¿No tienes cuenta? Regístrate</a>
   </div>
+</div>
 
   <div class="app hidden" id="app">
     <header>
@@ -182,34 +183,31 @@
 
     // Iniciar sesión
     document.getElementById('loginBtn').addEventListener('click', async () => {
-      const username = document.getElementById('loginUsername').value.trim();
-      const password = document.getElementById('loginPassword').value.trim();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
 
-      if (!username || !password) {
-        alert('Ingrese nombre de usuario y contraseña');
-        return;
-      }
+  if (!email || !password) {
+    alert('Ingrese correo electrónico y contraseña');
+    return;
+  }
 
-      try {
-        // Buscar el correo asociado al nombre de usuario
-        const usernameQuery = query(collection(db, 'usuarios'), where('username', '==', username));
-        const usernameSnapshot = await getDocs(usernameQuery);
-
-        if (usernameSnapshot.empty) {
-          alert('Nombre de usuario no encontrado');
-          return;
-        }
-
-        const userDoc = usernameSnapshot.docs[0].data();
-        const email = userDoc.email;
-
-        // Iniciar sesión con correo y contraseña
-        await signInWithEmailAndPassword(auth, email, password);
-      } catch (error) {
-        console.error('Error en inicio de sesión:', error);
-        alert('Nombre de usuario o contraseña incorrectos');
-      }
-    });
+  try {
+    // Iniciar sesión directamente con correo y contraseña
+    await signInWithEmailAndPassword(auth, email, password);
+    // No necesitas hacer nada más, onAuthStateChanged se encarga del resto
+  } catch (error) {
+    console.error('Error en inicio de sesión:', error);
+    if (error.code === 'auth/user-not-found') {
+      alert('Usuario no encontrado');
+    } else if (error.code === 'auth/wrong-password') {
+      alert('Contraseña incorrecta');
+    } else if (error.code === 'auth/invalid-email') {
+      alert('Correo electrónico inválido');
+    } else {
+      alert('Error en inicio de sesión: ' + error.message);
+    }
+  }
+});
 
     // Cerrar sesión
     document.getElementById('btn-logout').addEventListener('click', async () => {
