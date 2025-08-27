@@ -155,6 +155,9 @@
           });
         });
 
+        // Agregar un pequeño retraso para asegurar la propagación del estado
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         // Guardar datos adicionales en Firestore
         console.log('Guardando datos en Firestore para UID:', user.uid);
         const userDoc = {
@@ -172,6 +175,8 @@
         window.location.href = 'index.html';
       } catch (error) {
         console.error('Error al registrarse:', error);
+        console.error('Código de error:', error.code);
+        console.error('Mensaje de error:', error.message);
         if (error.code === 'auth/email-already-in-use') {
           alert('El correo electrónico ya está en uso.');
         } else if (error.code === 'auth/invalid-email') {
