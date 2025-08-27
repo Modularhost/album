@@ -128,9 +128,9 @@
 
 <script type="module">
   // Importar Firebase
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-  import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+  import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
+  import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
   // Configuración de Firebase
   const firebaseConfig = {
@@ -246,14 +246,12 @@
     const photoDoc = querySnapshot.docs.find(doc => doc.data().id === id);
     if (photoDoc) {
       const { fullUrl, thumbUrl } = photoDoc.data();
-      // Eliminar archivos de Firebase Storage
       try {
         await deleteObject(storageRef(storage, fullUrl));
         await deleteObject(storageRef(storage, thumbUrl));
       } catch (error) {
         console.error('Error al eliminar archivos de Storage:', error);
       }
-      // Eliminar metadatos de Firestore
       await deleteDoc(doc(db, 'photos', photoDoc.id));
     }
   }
