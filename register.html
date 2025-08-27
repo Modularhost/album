@@ -125,36 +125,49 @@
 
       try {
         // Verificar si el nombre de usuario ya existe
+        console.log('Verificando nombre de usuario:', username);
         const usernameQuery = query(collection(db, 'usuarios'), where('username', '==', username));
         const usernameSnapshot = await getDocs(usernameQuery);
         if (!usernameSnapshot.empty) {
+          console.log('Nombre de usuario ya existe:', username);
           alert('El nombre de usuario ya está en uso.');
           return;
         }
 
         // Crear usuario en Firebase Authentication
+        console.log('Creando usuario con email:', email);
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
+        console.log('Usuario creado con UID:', user.uid);
 
         // Esperar a que el estado de autenticación se actualice
         await new Promise((resolve, reject) => {
+          console.log('Esperando estado de autenticación para UID:', user.uid);
           const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             if (currentUser && currentUser.uid === user.uid) {
+              console.log('Autenticación confirmada para UID:', currentUser.uid);
               unsubscribe();
               resolve();
             }
-          }, reject);
+          }, (error) => {
+            console.error('Error en onAuthStateChanged:', error);
+            reject(error);
+          });
         });
 
         // Guardar datos adicionales en Firestore
-        await addDoc(collection(db, 'usuarios'), {
+        console.log('Guardando datos en Firestore para UID:', user.uid);
+        const userDoc = {
           uid: user.uid,
           fullName: fullName,
           email: email,
           username: username,
           createdAt: Date.now()
-        });
+        };
+        console.log('Datos a guardar:', userDoc);
+        await addDoc(collection(db, 'usuarios'), userDoc);
 
+        console.log('Registro exitoso para:', username);
         alert('Registro exitoso. Ahora puedes iniciar sesión.');
         window.location.href = 'index.html';
       } catch (error) {
@@ -167,6 +180,7 @@
           alert('La contraseña debe tener al menos 6 caracteres.');
         } else if (error.code === 'permission-denied') {
           alert('Permisos insuficientes. Verifica las reglas de Firestore.');
+          console.error('Detalles del error de permisos:', error);
         } else {
           alert('Error al registrarse: ' + error.message);
         }
