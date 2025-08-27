@@ -4,9 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Mi Álbum de Fotos</title>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
   <style>
     :root{
       --bg:#0f1115; --panel:#171a21; --muted:#3a4254; --text:#e7ebf3; --accent:#7aa2f7; --accent-2:#9ece6a; --danger:#f7768e;
@@ -129,12 +126,13 @@
     <a class="link" href="#" id="clear-all">Borrar todo</a>
   </footer>
 
-<script>
-  // ======= Firebase Config =======
+<script type="module">
+  // Importar Firebase
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
   import { getFirestore, collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+  // Configuración de Firebase
   const firebaseConfig = {
     apiKey: "AIzaSyAQHwo1RwucIRAIlqpo3GgRJNmnQlXoNDM",
     authDomain: "album-bc4e1.firebaseapp.com",
@@ -150,12 +148,12 @@
   const db = getFirestore(app);
 
   // ======= Utilidades UI =======
-  const $ = (s, el=document) => el.querySelector(s);
-  const $$ = (s, el=document) => Array.from(el.querySelectorAll(s));
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
   const toast = (msg) => { console.log(msg); };
 
-  // ======= Firebase Functions =======
-  async function ensureDefaultAlbum(){
+  // ======= Funciones de Firebase =======
+  async function ensureDefaultAlbum() {
     const albumsRef = collection(db, 'albums');
     const querySnapshot = await getDocs(albumsRef);
     const hasDefault = querySnapshot.docs.some(doc => doc.data().id === 'default');
@@ -164,37 +162,37 @@
     }
   }
 
-  async function listAlbums(){
+  async function listAlbums() {
     const albumsRef = collection(db, 'albums');
     const querySnapshot = await getDocs(albumsRef);
     const albums = querySnapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
     return albums.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  async function createAlbum(name){
+  async function createAlbum(name) {
     const id = crypto.randomUUID();
     await addDoc(collection(db, 'albums'), { id, name, createdAt: Date.now() });
     return id;
   }
 
-  async function addPhotos(files, album){
-    for (const file of files){
+  async function addPhotos(files, album) {
+    for (const file of files) {
       if (!file.type.startsWith('image/')) continue;
       const { thumb, width, height } = await makeThumb(file);
       const id = crypto.randomUUID();
       
-      // Upload full image to Firebase Storage
+      // Subir imagen completa a Firebase Storage
       const fullRef = storageRef(storage, `photos/${id}/${file.name}`);
       await uploadBytes(fullRef, file);
       const fullUrl = await getDownloadURL(fullRef);
 
-      // Upload thumbnail to Firebase Storage
+      // Subir miniatura a Firebase Storage
       const thumbBlob = dataURLToBlob(thumb);
       const thumbRef = storageRef(storage, `photos/${id}/thumb_${file.name}`);
       await uploadBytes(thumbRef, thumbBlob);
       const thumbUrl = await getDownloadURL(thumbRef);
 
-      // Store metadata in Firestore
+      // Guardar metadatos en Firestore
       await addDoc(collection(db, 'photos'), {
         id,
         album,
@@ -209,13 +207,13 @@
     }
   }
 
-  async function getPhotos({album, search, sort='newest'}){
+  async function getPhotos({ album, search, sort = 'newest' }) {
     const photosRef = collection(db, 'photos');
     const querySnapshot = await getDocs(photosRef);
     let rows = querySnapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
     
     if (album) rows = rows.filter(p => p.album === album);
-    if (search){
+    if (search) {
       const q = search.toLowerCase();
       rows = rows.filter(p => p.name.toLowerCase().includes(q) || (p.tags || []).join(',').toLowerCase().includes(q));
     }
@@ -226,14 +224,14 @@
     return rows;
   }
 
-  async function getPhoto(id){
+  async function getPhoto(id) {
     const photosRef = collection(db, 'photos');
     const querySnapshot = await getDocs(photosRef);
     const photo = querySnapshot.docs.find(doc => doc.data().id === id);
     return photo ? { docId: photo.id, ...photo.data() } : null;
   }
 
-  async function updatePhoto(id, patch){
+  async function updatePhoto(id, patch) {
     const photosRef = collection(db, 'photos');
     const querySnapshot = await getDocs(photosRef);
     const photoDoc = querySnapshot.docs.find(doc => doc.data().id === id);
@@ -242,21 +240,27 @@
     }
   }
 
-  async function deletePhoto(id){
+  async function deletePhoto(id) {
     const photosRef = collection(db, 'photos');
     const querySnapshot = await getDocs(photosRef);
     const photoDoc = querySnapshot.docs.find(doc => doc.data().id === id);
     if (photoDoc) {
       const { fullUrl, thumbUrl } = photoDoc.data();
-      await deleteObject(storageRef(storage, fullUrl));
-      await deleteObject(storageRef(storage, thumbUrl));
+      // Eliminar archivos de Firebase Storage
+      try {
+        await deleteObject(storageRef(storage, fullUrl));
+        await deleteObject(storageRef(storage, thumbUrl));
+      } catch (error) {
+        console.error('Error al eliminar archivos de Storage:', error);
+      }
+      // Eliminar metadatos de Firestore
       await deleteDoc(doc(db, 'photos', photoDoc.id));
     }
   }
 
   // Thumbnails
-  function bitmapToBlob(bitmap, type='image/jpeg', quality=.9){
-    return new Promise((resolve)=>{
+  function bitmapToBlob(bitmap, type = 'image/jpeg', quality = 0.9) {
+    return new Promise((resolve) => {
       const canvas = document.createElement('canvas');
       canvas.width = bitmap.width; canvas.height = bitmap.height;
       const ctx = canvas.getContext('2d');
@@ -265,7 +269,7 @@
     });
   }
 
-  function dataURLToBlob(dataURL){
+  function dataURLToBlob(dataURL) {
     const [meta, b64] = dataURL.split(',');
     const mime = /data:(.*?);/i.exec(meta)[1];
     const bin = atob(b64);
@@ -274,24 +278,24 @@
     return new Blob([arr], { type: mime });
   }
 
-  async function makeThumb(file){
+  async function makeThumb(file) {
     const bmp = await createImageBitmap(file);
     const maxSide = 480;
-    const scale = Math.min(1, maxSide/Math.max(bmp.width, bmp.height));
+    const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
     const w = Math.round(bmp.width * scale);
     const h = Math.round(bmp.height * scale);
     const canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(bmp, 0, 0, w, h);
-    const thumb = canvas.toDataURL('image/jpeg', .8);
+bnb    const thumb = canvas.toDataURL('image/jpeg', 0.8);
     return { thumb, width: bmp.width, height: bmp.height };
   }
 
-  // ======= UI Logic =======
+  // ======= Lógica de UI =======
   let state = { albums: [], currentAlbum: 'default', photos: [], current: null };
 
-  async function init(){
+  async function init() {
     await ensureDefaultAlbum();
     state.albums = await listAlbums();
     if (!state.albums.find(a => a.id === 'default')) {
@@ -302,9 +306,9 @@
     await refreshPhotos();
   }
 
-  function renderAlbums(){
+  function renderAlbums() {
     const list = $('#album-list'); list.innerHTML = '';
-    for (const a of state.albums){
+    for for (const a of state.albums) {
       const el = document.createElement('div');
       el.className = 'album' + (a.id === state.currentAlbum ? ' active' : '');
       el.innerHTML = `<span class="name">${a.name}</span><small data-count="${a.id}">…</small>`;
@@ -313,24 +317,24 @@
     }
     getPhotos({ album: null }).then(rows => {
       const byAlbum = rows.reduce((acc, p) => { acc[p.album] = (acc[p.album] || 0) + 1; return acc; }, {});
-      for (const a of state.albums){
+      for (const a of state.albums) {
         const el = list.querySelector(`small[data-count="${a.id}"]`);
         if (el) el.textContent = byAlbum[a.id] || 0;
       }
     });
     const sel = $('#edit-album'); sel.innerHTML = '';
-    for (const a of state.albums){
+    for (const a of state.albums) {
       const opt = document.createElement('option'); opt.value = a.id; opt.textContent = a.name; sel.appendChild(opt);
     }
   }
 
-  async function refreshPhotos(){
+  async function refreshPhotos() {
     const q = $('#search').value.trim();
     const sort = $('#sort').value;
     state.photos = await getPhotos({ album: state.currentAlbum, search: q, sort });
     const grid = $('#grid'); grid.innerHTML = '';
     $('#empty').style.display = state.photos.length ? 'none' : 'block';
-    for (const p of state.photos){
+    for (const p of state.photos) {
       const card = document.createElement('div');
       card.className = 'card';
       const img = document.createElement('img'); img.src = p.thumbUrl; img.alt = p.name; img.className = 'thumb';
@@ -344,7 +348,7 @@
     }
   }
 
-  async function openViewer(id){
+  async function openViewer(id) {
     state.current = await getPhoto(id);
     const p = state.current;
     $('#viewer-img').src = p.fullUrl;
@@ -355,7 +359,7 @@
     $('#viewer').showModal();
   }
 
-  // ======= Events =======
+  // ======= Eventos =======
   $('#btn-add').onclick = () => $('#file-input').click();
   $('#file-input').onchange = async (e) => {
     const files = Array.from(e.target.files);
@@ -411,7 +415,7 @@
     document.body.appendChild(a); a.click(); a.remove();
   };
 
-  function navViewer(dir){
+  function navViewer(dir) {
     if (!state.current) return;
     const i = state.photos.findIndex(x => x.id === state.current.id);
     let j = i + dir; if (j < 0) j = state.photos.length - 1; if (j >= state.photos.length) j = 0;
@@ -456,8 +460,12 @@
     await Promise.all(albumsSnap.docs.map(doc => deleteDoc(doc.ref)));
     await Promise.all(photosSnap.docs.map(async doc => {
       const { fullUrl, thumbUrl } = doc.data();
-      await deleteObject(storageRef(storage, fullUrl));
-      await deleteObject(storageRef(storage, thumbUrl));
+      try {
+        await deleteObject(storageRef(storage, fullUrl));
+        await deleteObject(storageRef(storage, thumbUrl));
+      } catch (error) {
+        console.error('Error al eliminar archivos de Storage:', error);
+      }
       await deleteDoc(doc.ref);
     }));
     await ensureDefaultAlbum();
