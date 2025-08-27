@@ -64,25 +64,76 @@
     .footer{display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-top:1px solid #222630; background:#0d1118}
     .link{color:var(--accent); text-decoration:none}
 
-    .login-container{display:flex;justify-content:center;align-items:center;height:100vh;background:#f5f5f5;}
-    .login-form{background:#fff;padding:40px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.1);width:100%;max-width:400px;}
-    .login-form h2{text-align:center;margin-bottom:24px;color:#2563eb;}
-    .login-form input{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #ccc;}
-    .login-form button{width:100%;padding:12px;margin-top:12px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;}
-    .login-form button:hover{background:#1d4ed8;}
+    .login-container{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      height:100vh;
+      background:var(--bg);
+    }
+    .login-form{
+      background:var(--panel);
+      padding:40px;
+      border-radius:var(--radius);
+      box-shadow:0 10px 30px rgba(0,0,0,0.2);
+      width:100%;
+      max-width:400px;
+    }
+    .login-form h2{
+      text-align:center;
+      margin-bottom:24px;
+      color:var(--accent);
+    }
+    .login-form input{
+      width:100%;
+      padding:12px;
+      margin:8px 0;
+      border-radius:8px;
+      border:1px solid var(--muted);
+      background:#0e121a;
+      color:var(--text);
+      outline:none;
+    }
+    .login-form input:focus{
+      border-color:var(--accent);
+    }
+    .login-form button{
+      width:100%;
+      padding:12px;
+      margin-top:12px;
+      background:var(--accent);
+      color:#0b1020;
+      border:none;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    .login-form button:hover{
+      background:#5b8def;
+    }
+    .login-form .link{
+      display:block;
+      text-align:center;
+      margin-top:16px;
+      color:var(--accent);
+      text-decoration:none;
+    }
+    .login-form .link:hover{
+      text-decoration:underline;
+    }
     .hidden{display:none;}
   </style>
 </head>
 <body>
-<div class="login-container" id="loginContainer">
-  <div class="login-form">
-    <h2>Iniciar Sesión</h2>
-    <input type="email" id="loginEmail" placeholder="Correo electrónico">
-    <input type="password" id="loginPassword" placeholder="Contraseña">
-    <button id="loginBtn">Iniciar Sesión</button>
-    <a class="link" href="register.html">¿No tienes cuenta? Regístrate</a>
+  <div class="login-container" id="loginContainer">
+    <div class="login-form">
+      <h2>Iniciar Sesión</h2>
+      <input type="email" id="loginEmail" placeholder="Correo electrónico" required>
+      <input type="password" id="loginPassword" placeholder="Contraseña" required>
+      <button id="loginBtn">Iniciar Sesión</button>
+      <a class="link" href="register.html">¿No tienes cuenta? Regístrate</a>
+    </div>
   </div>
-</div>
 
   <div class="app hidden" id="app">
     <header>
@@ -109,7 +160,7 @@
       <div class="toolbar">
         <div class="dropzone" id="dropzone">
           <strong>Arrastra tus fotos aquí</strong>
-          <span style="opacity:.7">o usa “Subir fotos”</span>
+          <span style="opacity:.7">o usa "Subir fotos"</span>
         </div>
         <input id="search" class="input search" placeholder="Buscar por nombre o etiqueta" />
         <select id="sort" class="select">
@@ -172,42 +223,46 @@
 
     onAuthStateChanged(auth, (user) => {
       if (user) {
+        console.log('Usuario autenticado:', user.uid);
         loginContainer.classList.add('hidden');
         appContainer.classList.remove('hidden');
         init();
       } else {
+        console.log('Usuario no autenticado');
         loginContainer.classList.remove('hidden');
         appContainer.classList.add('hidden');
       }
     });
 
-    // Iniciar sesión
+    // Iniciar sesión con email
     document.getElementById('loginBtn').addEventListener('click', async () => {
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value.trim();
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value.trim();
 
-  if (!email || !password) {
-    alert('Ingrese correo electrónico y contraseña');
-    return;
-  }
+      if (!email || !password) {
+        alert('Ingrese correo electrónico y contraseña');
+        return;
+      }
 
-  try {
-    // Iniciar sesión directamente con correo y contraseña
-    await signInWithEmailAndPassword(auth, email, password);
-    // No necesitas hacer nada más, onAuthStateChanged se encarga del resto
-  } catch (error) {
-    console.error('Error en inicio de sesión:', error);
-    if (error.code === 'auth/user-not-found') {
-      alert('Usuario no encontrado');
-    } else if (error.code === 'auth/wrong-password') {
-      alert('Contraseña incorrecta');
-    } else if (error.code === 'auth/invalid-email') {
-      alert('Correo electrónico inválido');
-    } else {
-      alert('Error en inicio de sesión: ' + error.message);
-    }
-  }
-});
+      try {
+        console.log('Intentando login con email:', email);
+        await signInWithEmailAndPassword(auth, email, password);
+        console.log('Login exitoso');
+      } catch (error) {
+        console.error('Error en inicio de sesión:', error);
+        if (error.code === 'auth/user-not-found') {
+          alert('Usuario no encontrado');
+        } else if (error.code === 'auth/wrong-password') {
+          alert('Contraseña incorrecta');
+        } else if (error.code === 'auth/invalid-email') {
+          alert('Correo electrónico inválido');
+        } else if (error.code === 'auth/invalid-credential') {
+          alert('Credenciales inválidas');
+        } else {
+          alert('Error en inicio de sesión: ' + error.message);
+        }
+      }
+    });
 
     // Cerrar sesión
     document.getElementById('btn-logout').addEventListener('click', async () => {
@@ -227,111 +282,162 @@
 
     // ======= Funciones de Firebase =======
     async function ensureDefaultAlbum() {
-      const albumsRef = collection(db, 'albums');
-      const querySnapshot = await getDocs(albumsRef);
-      const hasDefault = querySnapshot.docs.some(doc => doc.data().id === 'default');
-      if (!hasDefault) {
-        await addDoc(albumsRef, { id: 'default', name: 'General', createdAt: Date.now(), userId: auth.currentUser.uid });
+      try {
+        const albumsRef = collection(db, 'albums');
+        const q = query(albumsRef, where('userId', '==', auth.currentUser.uid));
+        const querySnapshot = await getDocs(q);
+        const hasDefault = querySnapshot.docs.some(doc => doc.data().id === 'default');
+        if (!hasDefault) {
+          console.log('Creando álbum default');
+          await addDoc(albumsRef, { 
+            id: 'default', 
+            name: 'General', 
+            createdAt: Date.now(), 
+            userId: auth.currentUser.uid 
+          });
+        }
+      } catch (error) {
+        console.error('Error al crear álbum default:', error);
+        throw error;
       }
     }
 
     async function listAlbums() {
-      const albumsRef = collection(db, 'albums');
-      const q = query(albumsRef, where('userId', '==', auth.currentUser.uid));
-      const querySnapshot = await getDocs(q);
-      const albums = querySnapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
-      return albums.sort((a, b) => a.name.localeCompare(b.name));
+      try {
+        const albumsRef = collection(db, 'albums');
+        const q = query(albumsRef, where('userId', '==', auth.currentUser.uid));
+        const querySnapshot = await getDocs(q);
+        const albums = querySnapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
+        return albums.sort((a, b) => a.name.localeCompare(b.name));
+      } catch (error) {
+        console.error('Error al listar álbumes:', error);
+        throw error;
+      }
     }
 
     async function createAlbum(name) {
-      const id = crypto.randomUUID();
-      await addDoc(collection(db, 'albums'), { id, name, createdAt: Date.now(), userId: auth.currentUser.uid });
-      return id;
+      try {
+        const id = crypto.randomUUID();
+        await addDoc(collection(db, 'albums'), { 
+          id, 
+          name, 
+          createdAt: Date.now(), 
+          userId: auth.currentUser.uid 
+        });
+        return id;
+      } catch (error) {
+        console.error('Error al crear álbum:', error);
+        throw error;
+      }
     }
 
     async function addPhotos(files, album) {
       for (const file of files) {
         if (!file.type.startsWith('image/')) continue;
-        const { thumb, width, height } = await makeThumb(file);
-        const id = crypto.randomUUID();
-        
-        // Subir imagen completa a Firebase Storage
-        const fullRef = storageRef(storage, `photos/${auth.currentUser.uid}/${id}/${file.name}`);
-        await uploadBytes(fullRef, file);
-        const fullUrl = await getDownloadURL(fullRef);
+        try {
+          const { thumb, width, height } = await makeThumb(file);
+          const id = crypto.randomUUID();
+          
+          // Subir imagen completa a Firebase Storage
+          const fullRef = storageRef(storage, `photos/${auth.currentUser.uid}/${id}/${file.name}`);
+          await uploadBytes(fullRef, file);
+          const fullUrl = await getDownloadURL(fullRef);
 
-        // Subir miniatura a Firebase Storage
-        const thumbBlob = dataURLToBlob(thumb);
-        const thumbRef = storageRef(storage, `photos/${auth.currentUser.uid}/${id}/thumb_${file.name}`);
-        await uploadBytes(thumbRef, thumbBlob);
-        const thumbUrl = await getDownloadURL(thumbRef);
+          // Subir miniatura a Firebase Storage
+          const thumbBlob = dataURLToBlob(thumb);
+          const thumbRef = storageRef(storage, `photos/${auth.currentUser.uid}/${id}/thumb_${file.name}`);
+          await uploadBytes(thumbRef, thumbBlob);
+          const thumbUrl = await getDownloadURL(thumbRef);
 
-        // Guardar metadatos en Firestore
-        await addDoc(collection(db, 'photos'), {
-          id,
-          album,
-          name: file.name.replace(/\.[^.]+$/,''),
-          createdAt: Date.now(),
-          tags: [],
-          width,
-          height,
-          fullUrl,
-          thumbUrl,
-          userId: auth.currentUser.uid
-        });
+          // Guardar metadatos en Firestore
+          await addDoc(collection(db, 'photos'), {
+            id,
+            album,
+            name: file.name.replace(/\.[^.]+$/,''),
+            createdAt: Date.now(),
+            tags: [],
+            width,
+            height,
+            fullUrl,
+            thumbUrl,
+            userId: auth.currentUser.uid
+          });
+        } catch (error) {
+          console.error('Error al subir foto:', file.name, error);
+        }
       }
     }
 
     async function getPhotos({ album, search, sort = 'newest' }) {
-      const photosRef = collection(db, 'photos');
-      const q = query(photosRef, where('userId', '==', auth.currentUser.uid));
-      const querySnapshot = await getDocs(q);
-      let rows = querySnapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
-      
-      if (album) rows = rows.filter(p => p.album === album);
-      if (search) {
-        const q = search.toLowerCase();
-        rows = rows.filter(p => p.name.toLowerCase().includes(q) || (p.tags || []).join(',').toLowerCase().includes(q));
+      try {
+        const photosRef = collection(db, 'photos');
+        const q = query(photosRef, where('userId', '==', auth.currentUser.uid));
+        const querySnapshot = await getDocs(q);
+        let rows = querySnapshot.docs.map(doc => ({ docId: doc.id, ...doc.data() }));
+        
+        if (album) rows = rows.filter(p => p.album === album);
+        if (search) {
+          const q = search.toLowerCase();
+          rows = rows.filter(p => p.name.toLowerCase().includes(q) || (p.tags || []).join(',').toLowerCase().includes(q));
+        }
+        if (sort === 'newest') rows.sort((a, b) => b.createdAt - a.createdAt);
+        if (sort === 'oldest') rows.sort((a, b) => a.createdAt - b.createdAt);
+        if (sort === 'name') rows.sort((a, b) => a.name.localeCompare(b.name));
+        
+        return rows;
+      } catch (error) {
+        console.error('Error al obtener fotos:', error);
+        throw error;
       }
-      if (sort === 'newest') rows.sort((a, b) => b.createdAt - a.createdAt);
-      if (sort === 'oldest') rows.sort((a, b) => a.createdAt - b.createdAt);
-      if (sort === 'name') rows.sort((a, b) => a.name.localeCompare(b.name));
-      
-      return rows;
     }
 
     async function getPhoto(id) {
-      const photosRef = collection(db, 'photos');
-      const q = query(photosRef, where('id', '==', id), where('userId', '==', auth.currentUser.uid));
-      const querySnapshot = await getDocs(q);
-      const photo = querySnapshot.docs[0];
-      return photo ? { docId: photo.id, ...photo.data() } : null;
+      try {
+        const photosRef = collection(db, 'photos');
+        const q = query(photosRef, where('id', '==', id), where('userId', '==', auth.currentUser.uid));
+        const querySnapshot = await getDocs(q);
+        const photo = querySnapshot.docs[0];
+        return photo ? { docId: photo.id, ...photo.data() } : null;
+      } catch (error) {
+        console.error('Error al obtener foto:', error);
+        throw error;
+      }
     }
 
     async function updatePhoto(id, patch) {
-      const photosRef = collection(db, 'photos');
-      const q = query(photosRef, where('id', '==', id), where('userId', '==', auth.currentUser.uid));
-      const querySnapshot = await getDocs(q);
-      const photoDoc = querySnapshot.docs[0];
-      if (photoDoc) {
-        await updateDoc(doc(db, 'photos', photoDoc.id), patch);
+      try {
+        const photosRef = collection(db, 'photos');
+        const q = query(photosRef, where('id', '==', id), where('userId', '==', auth.currentUser.uid));
+        const querySnapshot = await getDocs(q);
+        const photoDoc = querySnapshot.docs[0];
+        if (photoDoc) {
+          await updateDoc(doc(db, 'photos', photoDoc.id), patch);
+        }
+      } catch (error) {
+        console.error('Error al actualizar foto:', error);
+        throw error;
       }
     }
 
     async function deletePhoto(id) {
-      const photosRef = collection(db, 'photos');
-      const q = query(photosRef, where('id', '==', id), where('userId', '==', auth.currentUser.uid));
-      const querySnapshot = await getDocs(q);
-      const photoDoc = querySnapshot.docs[0];
-      if (photoDoc) {
-        const { fullUrl, thumbUrl } = photoDoc.data();
-        try {
-          await deleteObject(storageRef(storage, fullUrl));
-          await deleteObject(storageRef(storage, thumbUrl));
-        } catch (error) {
-          console.error('Error al eliminar archivos de Storage:', error);
+      try {
+        const photosRef = collection(db, 'photos');
+        const q = query(photosRef, where('id', '==', id), where('userId', '==', auth.currentUser.uid));
+        const querySnapshot = await getDocs(q);
+        const photoDoc = querySnapshot.docs[0];
+        if (photoDoc) {
+          const { fullUrl, thumbUrl } = photoDoc.data();
+          try {
+            await deleteObject(storageRef(storage, fullUrl));
+            await deleteObject(storageRef(storage, thumbUrl));
+          } catch (error) {
+            console.error('Error al eliminar archivos de Storage:', error);
+          }
+          await deleteDoc(doc(db, 'photos', photoDoc.id));
         }
-        await deleteDoc(doc(db, 'photos', photoDoc.id));
+      } catch (error) {
+        console.error('Error al eliminar foto:', error);
+        throw error;
       }
     }
 
@@ -373,14 +479,26 @@
     let state = { albums: [], currentAlbum: 'default', photos: [], current: null };
 
     async function init() {
-      await ensureDefaultAlbum();
-      state.albums = await listAlbums();
-      if (!state.albums.find(a => a.id === 'default')) {
-        await addDoc(collection(db, 'albums'), { id: 'default', name: 'General', createdAt: Date.now(), userId: auth.currentUser.uid });
+      try {
+        console.log('Inicializando aplicación...');
+        await ensureDefaultAlbum();
         state.albums = await listAlbums();
+        if (!state.albums.find(a => a.id === 'default')) {
+          await addDoc(collection(db, 'albums'), { 
+            id: 'default', 
+            name: 'General', 
+            createdAt: Date.now(), 
+            userId: auth.currentUser.uid 
+          });
+          state.albums = await listAlbums();
+        }
+        renderAlbums();
+        await refreshPhotos();
+        console.log('Aplicación inicializada correctamente');
+      } catch (error) {
+        console.error('Error al inicializar aplicación:', error);
+        alert('Error al cargar la aplicación. Verifica tu conexión.');
       }
-      renderAlbums();
-      await refreshPhotos();
     }
 
     function renderAlbums() {
@@ -398,7 +516,8 @@
           const el = list.querySelector(`small[data-count="${a.id}"]`);
           if (el) el.textContent = byAlbum[a.id] || 0;
         }
-      });
+      }).catch(error => console.error('Error al contar fotos por álbum:', error));
+      
       const sel = $('#edit-album'); sel.innerHTML = '';
       for (const a of state.albums) {
         const opt = document.createElement('option'); opt.value = a.id; opt.textContent = a.name; sel.appendChild(opt);
@@ -406,34 +525,42 @@
     }
 
     async function refreshPhotos() {
-      const q = $('#search').value.trim();
-      const sort = $('#sort').value;
-      state.photos = await getPhotos({ album: state.currentAlbum, search: q, sort });
-      const grid = $('#grid'); grid.innerHTML = '';
-      $('#empty').style.display = state.photos.length ? 'none' : 'block';
-      for (const p of state.photos) {
-        const card = document.createElement('div');
-        card.className = 'card';
-        const img = document.createElement('img'); img.src = p.thumbUrl; img.alt = p.name; img.className = 'thumb';
-        const meta = document.createElement('div'); meta.className = 'meta';
-        const date = new Date(p.createdAt).toLocaleDateString();
-        const tag = (p.tags && p.tags[0]) ? `#${p.tags[0]}` : `${p.width}×${p.height}`;
-        meta.innerHTML = `<span class="chip">${date}</span><span class="chip">${tag}</span>`;
-        card.appendChild(img); card.appendChild(meta);
-        card.onclick = () => openViewer(p.id);
-        grid.appendChild(card);
+      try {
+        const q = $('#search').value.trim();
+        const sort = $('#sort').value;
+        state.photos = await getPhotos({ album: state.currentAlbum, search: q, sort });
+        const grid = $('#grid'); grid.innerHTML = '';
+        $('#empty').style.display = state.photos.length ? 'none' : 'block';
+        for (const p of state.photos) {
+          const card = document.createElement('div');
+          card.className = 'card';
+          const img = document.createElement('img'); img.src = p.thumbUrl; img.alt = p.name; img.className = 'thumb';
+          const meta = document.createElement('div'); meta.className = 'meta';
+          const date = new Date(p.createdAt).toLocaleDateString();
+          const tag = (p.tags && p.tags[0]) ? `#${p.tags[0]}` : `${p.width}×${p.height}`;
+          meta.innerHTML = `<span class="chip">${date}</span><span class="chip">${tag}</span>`;
+          card.appendChild(img); card.appendChild(meta);
+          card.onclick = () => openViewer(p.id);
+          grid.appendChild(card);
+        }
+      } catch (error) {
+        console.error('Error al refrescar fotos:', error);
       }
     }
 
     async function openViewer(id) {
-      state.current = await getPhoto(id);
-      const p = state.current;
-      $('#viewer-img').src = p.fullUrl;
-      $('#edit-name').value = p.name || '';
-      $('#edit-tags').value = (p.tags || []).join(', ');
-      $('#edit-album').value = p.album;
-      $('#meta').textContent = `${p.width}×${p.height} · ${new Date(p.createdAt).toLocaleString()}`;
-      $('#viewer').showModal();
+      try {
+        state.current = await getPhoto(id);
+        const p = state.current;
+        $('#viewer-img').src = p.fullUrl;
+        $('#edit-name').value = p.name || '';
+        $('#edit-tags').value = (p.tags || []).join(', ');
+        $('#edit-album').value = p.album;
+        $('#meta').textContent = `${p.width}×${p.height} · ${new Date(p.createdAt).toLocaleString()}`;
+        $('#viewer').showModal();
+      } catch (error) {
+        console.error('Error al abrir visor:', error);
+      }
     }
 
     // ======= Eventos =======
@@ -493,101 +620,4 @@
         await updatePhoto(state.current.id, { name, tags, album });
         await refreshPhotos(); renderAlbums();
         toast('Guardado');
-      } catch (error) {
-        console.error('Error al guardar cambios:', error);
-        alert('Error al guardar cambios. Verifica que estés autenticado.');
       }
-    };
-    $('#delete').onclick = async () => {
-      if (!confirm('¿Eliminar esta foto?')) return;
-      try {
-        await deletePhoto(state.current.id);
-        $('#viewer').close();
-        await refreshPhotos(); renderAlbums();
-      } catch (error) {
-        console.error('Error al eliminar foto:', error);
-        alert('Error al eliminar foto. Verifica que estés autenticado.');
-      }
-    };
-    $('#download').onclick = async () => {
-      const p = await getPhoto(state.current.id);
-      const a = document.createElement('a');
-      a.href = p.fullUrl;
-      a.download = (p.name || 'foto') + '.jpg';
-      document.body.appendChild(a); a.click(); a.remove();
-    };
-
-    function navViewer(dir) {
-      if (!state.current) return;
-      const i = state.photos.findIndex(x => x.id === state.current.id);
-      let j = i + dir; if (j < 0) j = state.photos.length - 1; if (j >= state.photos.length) j = 0;
-      openViewer(state.photos[j].id);
-    }
-
-    $('#btn-export').onclick = async () => {
-      try {
-        const dump = { albums: [], photos: [] };
-        dump.albums = await listAlbums();
-        const photos = await getPhotos({ album: null });
-        dump.photos = photos.map(p => ({ ...p, blob: p.fullUrl }));
-        const json = JSON.stringify(dump);
-        const file = new Blob([json], { type: 'application/json' });
-        const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = 'album-respaldo.json'; a.click(); a.remove();
-      } catch (error) {
-        console.error('Error al exportar:', error);
-        alert('Error al exportar datos.');
-      }
-    };
-
-    $('#import-input').onchange = async (e) => {
-      const file = e.target.files[0]; if (!file) return;
-      const text = await file.text();
-      try {
-        const dump = JSON.parse(text);
-        const albumsRef = collection(db, 'albums');
-        await Promise.all(dump.albums.map(a => addDoc(albumsRef, { ...a, userId: auth.currentUser.uid })));
-        const photosRef = collection(db, 'photos');
-        await Promise.all(dump.photos.map(p => addDoc(photosRef, { ...p, fullUrl: p.blob, thumbUrl: p.blob, userId: auth.currentUser.uid })));
-        state.albums = await listAlbums();
-        renderAlbums(); await refreshPhotos();
-        alert('Importación completada.');
-      } catch (err) {
-        console.error('Error al importar:', err);
-        alert('No se pudo importar el archivo.');
-      }
-      e.target.value = '';
-    };
-
-    $('#clear-all').onclick = async (e) => {
-      e.preventDefault();
-      if (!confirm('Esto eliminará TODOS los álbumes y fotos guardados en Firebase. ¿Continuar?')) return;
-      try {
-        const albumsRef = collection(db, 'albums');
-        const photosRef = collection(db, 'photos');
-        const albumsQuery = query(albumsRef, where('userId', '==', auth.currentUser.uid));
-        const photosQuery = query(photosRef, where('userId', '==', auth.currentUser.uid));
-        const albumsSnap = await getDocs(albumsQuery);
-        const photosSnap = await getDocs(photosQuery);
-        await Promise.all(albumsSnap.docs.map(doc => deleteDoc(doc.ref)));
-        await Promise.all(photosSnap.docs.map(async doc => {
-          const { fullUrl, thumbUrl } = doc.data();
-          try {
-            await deleteObject(storageRef(storage, fullUrl));
-            await deleteObject(storageRef(storage, thumbUrl));
-          } catch (error) {
-            console.error('Error al eliminar archivos de Storage:', error);
-          }
-          await deleteDoc(doc.ref);
-        }));
-        await ensureDefaultAlbum();
-        state.albums = await listAlbums();
-        state.currentAlbum = 'default';
-        renderAlbums(); await refreshPhotos();
-      } catch (error) {
-        console.error('Error al borrar todo:', error);
-        alert('Error al borrar datos. Verifica que estés autenticado.');
-      }
-    };
-  </script>
-</body>
-</html>
